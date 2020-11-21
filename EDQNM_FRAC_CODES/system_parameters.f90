@@ -88,25 +88,25 @@ MODULE system_parameters
         ! 5. This is a fractional viscous model, s varies from (0,1). 
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-        name_sys    =   'forced_frac_'
+        name_sys    =   'v_s_2b3'
 
-        frac_index  =   0.8D0
+        frac_index  =   two/thr 
         ! Fractional laplacian index, 1 means original laplacian.
 
-        viscosity0  =   10.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
+!       viscosity0  =   18.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
 
-        mom_kol     =   mom( N ) / 5.0D0
+!       mom_kol     =   mom( N ) / 5.0D0
         ! Kolmogorov dissipation scale 
-PRINT*,"Kolmogorov dissipation chosen at ,k=",mom_kol
+!RINT*,"Kolmogorov dissipation chosen at ,k=",mom_kol
 
-        viscosity   =   ( mom_kol ** ( two - two * frac_index ) )
-        viscosity   =   viscosity * viscosity0
+!       viscosity   =   ( mom_kol ** ( two - two * frac_index ) )
+!       viscosity   =   viscosity * viscosity0
         ! Modified viscosity, such that at k_kol, the dissipative coefficient is 
         ! same as that of s=1 case.
-PRINT*,"Modified Viscosity, Visc=",viscosity
+!RINT*,"Modified Viscosity, Visc=",viscosity
 
-       !viscosity   =   viscosity0
-        ! UNCOMMENT this line to keep Modified viscosity
+!       viscosity   =   viscosity0
+        ! COMMENT this line to keep Modified viscosity
 
         initial_en  =   one
 

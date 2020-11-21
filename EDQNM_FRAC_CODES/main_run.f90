@@ -322,6 +322,7 @@ MODULE main_run
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         DEALLOCATE(spec)
         DEALLOCATE(frac_laplacian_k)
+        DEALLOCATE(geom_fac)
         DEALLOCATE(forcer,forcer_template)
         DEALLOCATE(en_time,es_time,ds_time)
         DEALLOCATE(d_spec1, d_spec2, d_spec3, d_spec4)
@@ -329,7 +330,7 @@ MODULE main_run
         DEALLOCATE(flux )
 
         DEALLOCATE(p_ind_max,p_ind_min)
-        DEALLOCATE(kqp_triangle_status,geom_fac)
+        DEALLOCATE(kqp_triangle_status)
         
         DEALLOCATE(mom,mom_band)
         DEALLOCATE(t_axis)

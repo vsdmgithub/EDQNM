@@ -44,15 +44,30 @@ PROGRAM EDQNM
     USE timer_mod
     
 	IMPLICIT NONE
+    ! _________________________
+    !  VARIABLES
+    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    INTEGER(KIND=4)::visc_ind
+    DOUBLE PRECISION,DIMENSION(6)::viscosity_array
+    ! Sequence of simulations with different viscosity
+    
+    CALL start_timer 
+    viscosity_array=(/ 12.0D0, 13.0D0, 14.0D0, 15.0D0, 16.0D0, 17.0D0 /)
 
-    CALL start_timer
- 
+    DO visc_ind =  1, 6
+
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !  I  N  I  T  I  A  L  I  Z  A  T  I  O  N
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     CALL read_input
     CALL init_global_variables
     CALL init_global_arrays
+
+    viscosity   =   viscosity_array( visc_ind )
+    PRINT*,'++++++++++++ VISCOSITY ++++++++++++++++'
+    WRITE(*,'(I2,ES10.3)'),visc_ind,viscosity
+    PRINT*,'========================================'
+    
     CALL init_system_parameters
     CALL init_system_arrays
     ! We get all the variables, and arrays ready to be allocated
@@ -85,7 +100,8 @@ PROGRAM EDQNM
         END IF
 
     END IF
-    
+   
+    END DO
     CALL finish_timer
     
 END PROGRAM EDQNM

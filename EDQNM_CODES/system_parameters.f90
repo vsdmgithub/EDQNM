@@ -83,9 +83,9 @@ MODULE system_parameters
         ! 4. Two timescales are derived, one from net energy, other from viscosity
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-        name_sys    =   'forced_'
+        name_sys    =   'v_08_'
 
-        viscosity   =   10.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
+        viscosity   =   8.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
 
         initial_en  =   one
 
