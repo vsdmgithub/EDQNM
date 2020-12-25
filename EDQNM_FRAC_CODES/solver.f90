@@ -141,10 +141,12 @@ MODULE solver
                 ! If three momentum can form a triangle
 
                     CALL transfer_term_integrand
+                    ! Getting the integrand term
                     
                     transfer_spec( k_ind ) = transfer_spec( k_ind ) + &
                     integrand * mom_band( q_ind ) * mom_band( p_ind )
-
+                    ! Summation terms over all possible q,p for a given k.
+                    
                 END IF
                 
             END DO
@@ -177,7 +179,8 @@ MODULE solver
         integrand  =  integrand * geom_fac( k_ind, q_ind, p_ind )
          
         integrand  =  integrand * damping  
-          
+
+        ! STITCHING THE INTEGRATION TERMS ONE BY ONE.
     END
 
     SUBROUTINE damping_factor
@@ -205,8 +208,8 @@ MODULE solver
         !   D   A   M   P   I   N   G       F  A  C  T  O  R 
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         
-        viscous_freq  =  viscosity * ( laplacian_k( k_ind ) + &
-                        laplacian_k( q_ind ) + laplacian_k( p_ind ) )
+        viscous_freq  =  viscosity * ( frac_laplacian_k( k_ind ) + &
+                        frac_laplacian_k( q_ind ) + frac_laplacian_k( p_ind ) )
 
         damping        =  one - DEXP( -( eddy_freq + viscous_freq ) * time_now )
 

@@ -47,23 +47,34 @@ PROGRAM EDQNM
     ! _________________________
     !  VARIABLES
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    INTEGER(KIND=4)::visc_ind
+    INTEGER(KIND=4)::visc_ind,no_of_visc
     DOUBLE PRECISION,DIMENSION(6)::viscosity_array
-    ! Sequence of simulations with different viscosity
-    
-    CALL start_timer 
-    viscosity_array=(/ 12.0D0, 13.0D0, 14.0D0, 15.0D0, 16.0D0, 17.0D0 /)
 
-    DO visc_ind =  1, 6
+    ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+    ! SEQUENCE OF SIMULATIONS WITH DIFFERENT VISCOSITY
+    ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+
+    CALL start_timer
+    
+    viscosity_array=(/ 22.0D0, 20.0D0, 18.0D0, 16.0D0, 14.0D0, 12.0D0 /)
+    ! ARRAY OF VISCOSITIES
+
+    no_of_visc  =   SIZE(viscosity_array)
+    
+    DO visc_ind =   1,  no_of_visc
 
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !  I  N  I  T  I  A  L  I  Z  A  T  I  O  N
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     CALL read_input
     CALL init_global_variables
     CALL init_global_arrays
-
-    viscosity   =   viscosity_array( visc_ind )
+    ! System is getting ready.
+    
+    viscosity   =   viscosity_array( visc_ind ) * ( 10.0D0 ** ( - 4.0D0 ) )
+    ! Correcting the order of viscosity
+    
     PRINT*,'++++++++++++ VISCOSITY ++++++++++++++++'
     WRITE(*,'(I2,ES10.3)'),visc_ind,viscosity
     PRINT*,'========================================'
@@ -100,8 +111,9 @@ PROGRAM EDQNM
         END IF
 
     END IF
-   
+  
     END DO
+
     CALL finish_timer
     
 END PROGRAM EDQNM

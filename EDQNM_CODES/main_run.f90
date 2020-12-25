@@ -66,6 +66,7 @@ MODULE main_run
     ! Call this to check the validity of parameters for the simulation, like time step, etc.,
     ! -------------
     ! INFO - END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
         IMPLICIT NONE
         
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

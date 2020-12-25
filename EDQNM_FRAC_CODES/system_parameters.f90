@@ -88,28 +88,28 @@ MODULE system_parameters
         ! 5. This is a fractional viscous model, s varies from (0,1). 
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-        name_sys    =   'v_s_2b3'
+        name_sys    =   's_5b6_v_'
 
-        frac_index  =   two/thr 
+        frac_index  =   fiv/six 
         ! Fractional laplacian index, 1 means original laplacian.
 
-!       viscosity0  =   18.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
+       !viscosity0  =   22.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
 
 !       mom_kol     =   mom( N ) / 5.0D0
         ! Kolmogorov dissipation scale 
-!RINT*,"Kolmogorov dissipation chosen at ,k=",mom_kol
 
 !       viscosity   =   ( mom_kol ** ( two - two * frac_index ) )
+
 !       viscosity   =   viscosity * viscosity0
         ! Modified viscosity, such that at k_kol, the dissipative coefficient is 
         ! same as that of s=1 case.
-!RINT*,"Modified Viscosity, Visc=",viscosity
 
-!       viscosity   =   viscosity0
+       !viscosity   =   viscosity0
         ! COMMENT this line to keep Modified viscosity
 
         initial_en  =   one
-
+        ! Initial energy
+        
         ind_integral     =   FLOOR( DBLE( N ) / 10.0D0 )
         ! Index (position) of integral scale
       
@@ -145,6 +145,7 @@ MODULE system_parameters
         ALLOCATE( p_ind_min( N, N ), p_ind_max( N, N ) ) 
         ALLOCATE( kqp_triangle_status( N, N, N ), geom_fac( N, N, N ) )
         ALLOCATE( frac_laplacian_k( N ) )
+        
         kqp_triangle_status =  0
         geom_fac            =  zero
         ! Reseting to zero for safety
@@ -165,12 +166,14 @@ MODULE system_parameters
             ELSE
                 p_ind_min( k_ind, q_ind )   =   find_index_ceiling( mom_p_min )
             END IF
-
+            ! FINDING THE MINIMUM OF 'p_ind' FOR EVERY PAIR OF 'k_ind,q_ind'
+            
             IF ( mom_p_max .GT. mom( N ) ) THEN
                 p_ind_max( k_ind, q_ind )   =   N
             ELSE
                 p_ind_max( k_ind, q_ind )   =   find_index_floor( mom_p_max )
             END IF
+            ! FINDING THE MAXIMUM OF 'p_ind' FOR EVERY PAIR OF 'k_ind,q_ind'
 
         END IF
         END DO
@@ -190,13 +193,15 @@ MODULE system_parameters
                 .AND. ( DABS(mom( q_ind ) - mom( p_ind )) .LT. mom( k_ind ) ) ) THEN
 
                     kqp_triangle_status(k_ind, q_ind, p_ind)  =   1
+                    ! MEANING, THE GIVEN THREE MOMENTUM 'p,k,q' CAN FORM A TRIANGLE.
                     
                     CALL find_cosine( k_ind, q_ind, p_ind, z_f )
                     CALL find_cosine( k_ind, p_ind, q_ind, x_f )
                     CALL find_cosine( q_ind, p_ind, k_ind, y_f )
-                    ! Finding cosines for all three sides once it is approved to participate in the triad interaction
+                    ! FINDING COSINES FOR ALL THREE SIDES ONCE IT IS APPROVED TO PARTICIPATE IN THE TRIAD INTERACTION
 
                     geom_fac( k_ind, q_ind, p_ind )  =  (z_f ** thr ) - x_f * y_f
+                    ! GEOMETRIC FACTOR IN THE E.D.Q.N.M
                     
                 END IF      
 
@@ -212,7 +217,8 @@ MODULE system_parameters
         DO k_ind = 1, N
 
             frac_laplacian_k( k_ind )   =   mom( k_ind ) ** ( two * frac_index )
-
+            ! FRACTIONAL LAPLACIAN - TO BE USED IN WHEREVER VISCOUS TERMS APPEAR
+            
         END DO
     END
     
@@ -233,7 +239,8 @@ MODULE system_parameters
         cosine  = ( mom( i1 ) ** two ) + ( mom( i2 ) ** two  ) - ( mom( i3 ) ** two )
 
         cosine  = cosine / ( two * mom( i1 ) * mom( i2 ) )
-        
+
+        ! FINDING COSINE OF ANGLE BETWEEN SIDES 'i1,i2'
     END
 
     INTEGER FUNCTION find_index_floor( mom0 )
