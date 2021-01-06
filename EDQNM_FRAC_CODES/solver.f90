@@ -13,7 +13,7 @@
 ! -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ! #########################
 ! MODULE: solver
-! LAST MODIFIED: 16 November 2020
+! LAST MODIFIED: 05 January 2021
 ! #########################
 ! TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 ! SOLVER FOR  EDQNM EQUATION
@@ -38,6 +38,7 @@ MODULE solver
     ! _________________________
     ! SOLVER VARIABLES
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    INTEGER(KIND=4)::cnt_k,cnt_p,cnt_q
     DOUBLE PRECISION::viscous_freq,eddy_freq 
     DOUBLE PRECISION::eddy_k,eddy_q,eddy_p
     DOUBLE PRECISION::integrand
@@ -48,6 +49,7 @@ MODULE solver
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::d_spec1, d_spec2, d_spec3, d_spec4
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::spec_temp,eddy_array
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::transfer_spec,flux
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::flux_pos,flux_neg
     ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
 
     CONTAINS
@@ -62,7 +64,7 @@ MODULE solver
 
         IMPLICIT NONE
         ! First store the spectral velocity into a temporary matrix, as steps of RK4 algorithm will manipulate 'spec(k)''
-
+        
         spec_temp   =   spec
         CALL time_derivative(d_spec1) ! This call provides the time derivative for the spectral 
 
@@ -117,7 +119,7 @@ MODULE solver
     SUBROUTINE transfer_term
     ! INFO - START  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     ! ------------
-    ! CALL this 
+    ! CALL this to get the transfer term for every k
     ! -------------
     ! INFO - END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -132,12 +134,11 @@ MODULE solver
         
         DO k_ind = 1 , N
         DO q_ind = 1 , N
-        IF ( q_ind .NE. k_ind ) THEN
 
             DO p_ind = p_ind_min( k_ind, q_ind ), p_ind_max( k_ind, q_ind )
             ! The third momentum runs through p_min to p_max, determined from the 'k,q'
 
-                IF ( kqp_triangle_status( k_ind, q_ind, p_ind )  .EQ. 1 ) THEN
+                IF ( kqp_status( k_ind, q_ind, p_ind )  .EQ. 1 ) THEN
                 ! If three momentum can form a triangle
 
                     CALL transfer_term_integrand
@@ -151,16 +152,15 @@ MODULE solver
                 
             END DO
 
-        END IF
         END DO
         END DO
-
+    
     END
     
     SUBROUTINE transfer_term_integrand
         ! INFO - START  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         ! ------------
-        ! CALL this to .
+        ! CALL this to get triad_density 
         ! -------------
         ! INFO - END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -186,7 +186,7 @@ MODULE solver
     SUBROUTINE damping_factor
         ! INFO - START  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         ! ------------
-        ! CALL this to .
+        ! CALL this to get the damping factor for the third moment
         ! -------------
         ! INFO - END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -216,5 +216,161 @@ MODULE solver
         damping        =  damping / ( eddy_freq + viscous_freq )
         
     END
-    
+
+    SUBROUTINE flux_decomposition
+    ! INFO - START  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    ! ------------
+    ! CALL this to decompose the net flux at 'k' into positive and negative flux.
+    ! -------------
+    ! INFO - END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+        IMPLICIT NONE
+        
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        !   F L U X     D E C O M P O S I T I O N     T   E   R   M
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        
+        flux_pos   =   zero
+        flux_neg   =   zero
+        flux       =   zero
+        ! Reseting the transfer term
+
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        !   N  E  T       F  L  U  X
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+        DO k_ind = 1, N
+            flux( k_ind ) = - SUM( transfer_spec( : k_ind) * mom_band( : k_ind) )
+        END DO   
+        ! Easily obtainable from tranfer_spec. Otherwise, we have to run the below loop
+        
+!        DO k2_ind = 1 , N
+!        DO k_ind  = k2_ind+1 , N
+!        DO q_ind  = 1 , N
+!        DO p_ind  = 1 , N
+
+!                IF ( kqp_status( k_ind, q_ind, p_ind )  .EQ. 1 ) THEN
+!                ! If three momentum can form a triangle
+
+!                    CALL transfer_term_integrand
+!                    ! Getting the integrand term
+                    
+!                    flux( k2_ind ) = flux( k2_ind ) + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
+!                    ! Summation terms over all possible k,q,p for a given k'.
+                    
+!                END IF
+                
+!        END DO
+!        END DO
+!        END DO
+!        END DO
+        
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        !   P  O  S  I  T  I  V  E     F  L  U  X
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        
+        DO k2_ind = 1 , N
+        DO k_ind  = k2_ind+1 , N
+        DO q_ind  = 1 , k2_ind
+        DO p_ind  = 1 , k2_ind
+
+                IF ( kqp_status( k_ind, q_ind, p_ind )  .EQ. 1 ) THEN
+                ! If three momentum can form a triangle
+
+                    CALL transfer_term_integrand
+                    ! Getting the integrand term
+                    
+                    flux_pos( k2_ind ) = flux_pos( k2_ind ) + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
+                    ! Summation terms over all possible k,q,p for a given k'.
+                    
+                END IF
+                
+        END DO
+        END DO
+        END DO
+        END DO
+
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        !  N  E  G  A  T  I  V  E     F  L  U  X
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        
+!        DO k2_ind = 1 , N
+!        DO k_ind  = 1 , k2_ind
+!        DO q_ind  = k2_ind+1 , N
+!        DO p_ind  = k2_ind+1 , N
+
+!                IF ( kqp_status( k_ind, q_ind, p_ind )  .EQ. 1 ) THEN
+!                ! If three momentum can form a triangle
+
+!                    CALL transfer_term_integrand
+!                    ! Getting the integrand term
+                    
+!                    flux_neg( k2_ind ) = flux_neg( k2_ind ) + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
+!                    ! Summation terms over all possible k,q,p for a given k'.
+                    
+!                END IF
+                
+!        END DO
+!        END DO
+!        END DO
+!        END DO
+        
+        flux_neg    =   flux_pos    -   flux
+        ! Easy to get, rather than doing the above calculation.
+        
+    END
+ 
 END MODULE solver
+
+!                    IF ((k_ind .EQ. 10) .AND. (q_ind .EQ. 9) .AND. (p_ind .EQ. 8) ) THEN
+
+!!                        IF (integrand .NE. zero) THEN
+!                        print*,k_ind,q_ind,p_ind,integrand,cnt_k
+!                        cnt_k=cnt_k+1
+!                        ig_triad=ig_triad+integrand
+
+!!                        END IF
+!                    END IF
+                    
+!                    IF ((k_ind .EQ. 10) .AND. (q_ind .EQ. 8) .AND. (p_ind .EQ. 9) ) THEN
+
+!!                        IF (integrand .NE. zero) THEN
+!                        print*,k_ind,q_ind,p_ind,integrand,cnt_k
+!                        cnt_k=cnt_k+1
+!                        ig_triad=ig_triad+integrand
+!!                        END IF
+                    
+!                    END IF
+                    
+!                    IF ((k_ind .EQ. 9) .AND. (q_ind .EQ. 8) .AND. (p_ind .EQ. 10) ) THEN
+!!                        IF (integrand .NE. zero) THEN
+!                        print*,k_ind,q_ind,p_ind,integrand,cnt_p
+!                        cnt_p=cnt_p+1
+!                        ig_triad=ig_triad+integrand
+!!                        END IF
+                        
+!                    END IF
+!                    IF ((k_ind .EQ. 9) .AND. (q_ind .EQ. 10) .AND. (p_ind .EQ. 8) ) THEN
+!!                        IF (integrand .NE. zero) THEN
+!                        print*,k_ind,q_ind,p_ind,integrand,cnt_p
+!                        cnt_p=cnt_p+1
+!                        ig_triad=ig_triad+integrand
+!!                        END IF
+!                    END IF
+                    
+!                    IF ((k_ind .EQ. 8) .AND. (q_ind .EQ. 10) .AND. (p_ind .EQ. 9) ) THEN
+!!                        IF (integrand .NE. zero) THEN
+!                        print*,k_ind,q_ind,p_ind,integrand,cnt_q
+!                        cnt_q=cnt_q+1
+!                        ig_triad=ig_triad+integrand
+!!                        END IF
+                        
+!                    END IF
+!                    IF ((k_ind .EQ. 8) .AND. (q_ind .EQ. 9) .AND. (p_ind .EQ. 10) ) THEN
+!!                        IF (integrand .NE. zero) THEN
+!                        print*,k_ind,q_ind,p_ind,integrand,cnt_q
+!                        cnt_q=cnt_q+1
+!                        ig_triad=ig_triad+integrand
+!!                        END IF
+                        
+!                    END IF   

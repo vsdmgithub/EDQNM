@@ -13,7 +13,7 @@
 ! -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ! #########################
 ! MODULE: initial_condition
-! LAST MODIFIED: 16 November 2020
+! LAST MODIFIED: 05 January 2021
 ! #########################
 ! TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 ! INITIAL CONDITION FOR EDQNM EQUATION

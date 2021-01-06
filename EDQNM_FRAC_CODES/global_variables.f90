@@ -13,7 +13,7 @@
 ! -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ! #########################
 ! MODULE: global_variables
-! LAST MODIFIED: 16 November 2020
+! LAST MODIFIED: 05 January 2021
 ! #########################
 ! TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 ! GLOBAL VARIABLES FOR EDQNM EQUATION
@@ -38,6 +38,7 @@ MODULE global_variables
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	INTEGER (KIND=4)::N
 	INTEGER (KIND=4)::k_ind,q_ind,p_ind    
+	INTEGER (KIND=4)::k2_ind
     ! ---------------------------------------------------------
     DOUBLE PRECISION::mom_base
     DOUBLE PRECISION::log_lambda,lambda
@@ -166,7 +167,7 @@ MODULE global_variables
         path_dir    =   '../EDQNM_data/'
         ! path of the main directory relative to this file.
 
-        name_dir    =   'N'//TRIM(ADJUSTL(N_char))//'/'
+        name_dir    =   'N'//TRIM(ADJUSTL(N_char))//'_v2/'
         ! name of the main directory
         
 	END

@@ -13,7 +13,7 @@
 ! -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ! #########################
 ! MODULE: main
-! LAST MODIFIED: 16 November 2020
+! LAST MODIFIED: 05 January 2021
 ! #########################
 ! TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 ! MAIN MODULE FOR EDQNM EQUATION
@@ -76,16 +76,17 @@ MODULE main_run
             all_set =  1
             
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            !  A  R  R  A  Y        D  E  A  L  L  O  C  A  T  I  O  N
+            !  A  R  R  A  Y     A  L  L  O  C  A  T  I  O  N
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             ALLOCATE( spec( N ) )
             ALLOCATE( forcer( N ), forcer_template( N ) )
             ALLOCATE( en_time (0 : t_step_total) )
             ALLOCATE( es_time (0 : t_step_total) )
             ALLOCATE( ds_time (0 : t_step_total) )
+            ALLOCATE( sk_time (0 : t_step_total) )
             ALLOCATE( d_spec1( N ), d_spec2( N ), d_spec3( N ), d_spec4( N ))
             ALLOCATE( spec_temp( N ), transfer_spec( N ), eddy_array( N ) )
-            ALLOCATE( flux( N ) )
+            ALLOCATE( flux( N ), flux_pos( N ), flux_neg( N ) )
 
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             !  I  N  I  T  I  A  L        C  O  N  D  I  T  I  O  N
@@ -152,6 +153,9 @@ MODULE main_run
         WRITE(233,"(A2,A20,A2,F6.3)")'6.',' Fractional index  ','= ',frac_index
         WRITE(233,"(A2,A20,A2,I5)")'7.',' No of saves   ','= ',save_total
         WRITE(233,"(A2,A20,A2,F6.3)")'8.',' Initial energy ','= ',initial_en
+        WRITE(233,"(A2,A20,A2,F12.4)")'9.',' Smallest wavenumber','= ',mom(1)
+        WRITE(233,"(A2,A20,A2,F12.4)")'10.',' Largest wavenumber ','= ',mom(N)
+        WRITE(233,"(A2,A20,A2,I8)")'11.',' Total Triad count ','= ',no_of_triads
 
         CLOSE(233)
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -233,17 +237,24 @@ MODULE main_run
             !  DISSIPATION FILE
 
             CALL transfer_term
+            CALL flux_decomposition
+                        
             file_address  =   TRIM(ADJUSTL(file_location))  //  'transfer_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
             CALL write_spectrum(file_address,mom,transfer_spec)
-            !  ENERGY TRANSFER FILE
-            
-            DO ind = 1, N
-                flux( ind ) = - SUM( transfer_spec( : ind) * mom_band( : ind) )
-            END DO
+            !  ENERGY TRANSFER FILE           
+       
             file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
             CALL write_spectrum(file_address,mom,flux)
             !  FLUX  FILE
-       
+
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_pos_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_pos)
+            !  POSITIVE FLUX  FILE
+
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_neg_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_neg)
+            !  NEGATIVE FLUX  FILE
+
         END IF
 
         energy           =   SUM( spec * mom_band )
@@ -255,7 +266,11 @@ MODULE main_run
         dissipation_rate =   two * viscosity * SUM( frac_laplacian_k * spec * mom_band )
         ds_time(t_step)  =   dissipation_rate 
 
-        !  ENERGY,ENSTROPHY, AND DISSIPATION VS TIME 
+        skewness         =   SUM( transfer_spec * laplacian_k * mom_band )
+        skewness         =   skewness * ( enstrophy ** ( -1.5D0 )) * DSQRT(135.0D0/98.0D0)
+        sk_time(t_step)  =   skewness
+        
+        !  ENERGY,ENSTROPHY, DISSIPAtioN AND SKEWNESS VS TIME 
 
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         !  F  O  R  C  I  N  G      I  N  I  T  I  A  T  I  N  G
@@ -316,7 +331,11 @@ MODULE main_run
         file_address  =  TRIM(ADJUSTL(file_location))   //     'viscous_loss_vs_time.dat'
         CALL write_temporal(file_address,t_axis,ds_time)
         ! DISSIPATION VS TIME FILE
-
+        
+        file_address  =  TRIM(ADJUSTL(file_location))   //     'skewness_vs_time.dat'
+        CALL write_temporal(file_address,t_axis,sk_time)
+        ! SKEWNESS VS TIME FILE
+        
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         !  A  R  R  A  Y        D  E  A  L  L  O  C  A  T  I  O  N
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -324,13 +343,13 @@ MODULE main_run
         DEALLOCATE(frac_laplacian_k)
         DEALLOCATE(geom_fac)
         DEALLOCATE(forcer,forcer_template)
-        DEALLOCATE(en_time,es_time,ds_time)
+        DEALLOCATE(en_time,es_time,ds_time,sk_time)
         DEALLOCATE(d_spec1, d_spec2, d_spec3, d_spec4)
         DEALLOCATE(spec_temp, transfer_spec, eddy_array )
-        DEALLOCATE(flux )
+        DEALLOCATE(flux ,flux_pos, flux_neg)
 
         DEALLOCATE(p_ind_max,p_ind_min)
-        DEALLOCATE(kqp_triangle_status)
+        DEALLOCATE(kqp_status)
         
         DEALLOCATE(mom,mom_band)
         DEALLOCATE(t_axis)

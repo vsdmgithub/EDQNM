@@ -13,7 +13,7 @@
 ! -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ! #########################
 ! MODULE: system_parameters
-! LAST MODIFIED: 16 November 2020
+! LAST MODIFIED: 05 January 2021
 ! #########################
 ! TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 ! SYSTEM PARAMETERS FOR EDQNM EQUATION
@@ -39,6 +39,7 @@ MODULE system_parameters
     INTEGER(KIND=4)::ind
     INTEGER(KIND=4)::ind_integral
     INTEGER(KIND=4)::t_step_forcing
+    INTEGER(KIND=4)::no_of_triads
     ! _________________________
     DOUBLE PRECISION::viscosity
     DOUBLE PRECISION::viscosity0
@@ -46,7 +47,8 @@ MODULE system_parameters
     DOUBLE PRECISION::mom_kol
     DOUBLE PRECISION::frac_index
     DOUBLE PRECISION::initial_en
-    DOUBLE PRECISION::energy,enstrophy,dissipation_rate
+    DOUBLE PRECISION::energy,enstrophy
+    DOUBLE PRECISION::dissipation_rate,skewness
     DOUBLE PRECISION::eddy_constant
     DOUBLE PRECISION::time_visc,time_spec
     ! _________________________
@@ -56,9 +58,10 @@ MODULE system_parameters
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::frac_laplacian_k
     DOUBLE PRECISION,DIMENSION(:,:,:),ALLOCATABLE::geom_fac
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::forcer,forcer_template 
-    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::en_time,es_time,ds_time
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::en_time,es_time
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::ds_time,sk_time
     ! _________________________
-    INTEGER(KIND=4),DIMENSION(:,:,:),ALLOCATABLE::kqp_triangle_status
+    INTEGER(KIND=4),DIMENSION(:,:,:),ALLOCATABLE::kqp_status
     INTEGER(KIND=4),DIMENSION(:,:),ALLOCATABLE::p_ind_min,p_ind_max
     ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
 
@@ -88,12 +91,12 @@ MODULE system_parameters
         ! 5. This is a fractional viscous model, s varies from (0,1). 
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-        name_sys    =   's_5b6_v_'
+        name_sys    =   's_1_v_'
 
-        frac_index  =   fiv/six 
+        frac_index  =   one 
         ! Fractional laplacian index, 1 means original laplacian.
 
-       !viscosity0  =   22.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
+!       viscosity0  =    12.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
 
 !       mom_kol     =   mom( N ) / 5.0D0
         ! Kolmogorov dissipation scale 
@@ -104,7 +107,7 @@ MODULE system_parameters
         ! Modified viscosity, such that at k_kol, the dissipative coefficient is 
         ! same as that of s=1 case.
 
-       !viscosity   =   viscosity0
+!       viscosity   =   viscosity0
         ! COMMENT this line to keep Modified viscosity
 
         initial_en  =   one
@@ -143,10 +146,10 @@ MODULE system_parameters
         DOUBLE PRECISION:: z_f, x_f, y_f
         
         ALLOCATE( p_ind_min( N, N ), p_ind_max( N, N ) ) 
-        ALLOCATE( kqp_triangle_status( N, N, N ), geom_fac( N, N, N ) )
+        ALLOCATE( kqp_status( N, N, N ), geom_fac( N, N, N ) )
         ALLOCATE( frac_laplacian_k( N ) )
         
-        kqp_triangle_status =  0
+        kqp_status =  0
         geom_fac            =  zero
         ! Reseting to zero for safety
         
@@ -156,7 +159,6 @@ MODULE system_parameters
         
         DO k_ind = 1 , N
         DO q_ind = 1 , N
-        IF ( q_ind .NE. k_ind ) THEN
 
             mom_p_min   =  DABS( mom( k_ind ) - mom( q_ind ) )
             mom_p_max   =  DABS( mom( k_ind ) + mom( q_ind ) )
@@ -164,53 +166,57 @@ MODULE system_parameters
             IF ( mom_p_min .LT. mom( 1 ) ) THEN
                 p_ind_min( k_ind, q_ind )   =   1
             ELSE
-                p_ind_min( k_ind, q_ind )   =   find_index_ceiling( mom_p_min )
+                p_ind_min( k_ind, q_ind )   =   find_index_floor( mom_p_min )
             END IF
             ! FINDING THE MINIMUM OF 'p_ind' FOR EVERY PAIR OF 'k_ind,q_ind'
             
-            IF ( mom_p_max .GT. mom( N ) ) THEN
+            IF ( mom_p_max .GT. mom( N-1 ) ) THEN
                 p_ind_max( k_ind, q_ind )   =   N
+                
+            ELSE IF (find_index_ceiling( mom_p_max ) .GT. N ) THEN
+                p_ind_max( k_ind, q_ind )   =   N
+                
             ELSE
-                p_ind_max( k_ind, q_ind )   =   find_index_floor( mom_p_max )
+                p_ind_max( k_ind, q_ind )   =   find_index_ceiling( mom_p_max )+1
             END IF
             ! FINDING THE MAXIMUM OF 'p_ind' FOR EVERY PAIR OF 'k_ind,q_ind'
 
-        END IF
         END DO
         END DO
         
         !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         !  T R I A N G L E     C H E C K   &   C O S I N E S   O F    I T.
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
+        no_of_triads =  0
+        ! Reset for no of triads in the system.
+        
         DO k_ind = 1 , N
         DO q_ind = 1 , N
-        IF ( q_ind .NE. k_ind ) THEN
 
             DO p_ind = p_ind_min( k_ind, q_ind ), p_ind_max( k_ind, q_ind ) 
             
-                IF ( ( ( mom( q_ind ) + mom( p_ind ) ) .GT. mom( k_ind ) ) &
-                .AND. ( DABS(mom( q_ind ) - mom( p_ind )) .LT. mom( k_ind ) ) ) THEN
+                IF ( find_triangle_compatibility(k_ind, q_ind, p_ind) .EQ. 1) THEN
 
-                    kqp_triangle_status(k_ind, q_ind, p_ind)  =   1
+                    kqp_status( k_ind, q_ind, p_ind )  =   1
                     ! MEANING, THE GIVEN THREE MOMENTUM 'p,k,q' CAN FORM A TRIANGLE.
-                    
+
                     CALL find_cosine( k_ind, q_ind, p_ind, z_f )
-                    CALL find_cosine( k_ind, p_ind, q_ind, x_f )
-                    CALL find_cosine( q_ind, p_ind, k_ind, y_f )
+                    CALL find_cosine( k_ind, p_ind, q_ind, y_f )
+                    CALL find_cosine( q_ind, p_ind, k_ind, x_f )
                     ! FINDING COSINES FOR ALL THREE SIDES ONCE IT IS APPROVED TO PARTICIPATE IN THE TRIAD INTERACTION
 
                     geom_fac( k_ind, q_ind, p_ind )  =  (z_f ** thr ) - x_f * y_f
                     ! GEOMETRIC FACTOR IN THE E.D.Q.N.M
-                    
+
+                    no_of_triads = no_of_triads + 1
+                    ! Counting the triad
                 END IF      
 
             END DO
 
-        END IF
         END DO
         END DO
-
+        
         !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         !  F  R  A  C  T  I  O  N  A  L     L  A  P  L  A  C  I  A  N
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -261,6 +267,31 @@ MODULE system_parameters
         DOUBLE PRECISION::mom0
         
         find_index_ceiling  =   CEILING ( DLOG( mom0 / mom_base) / log_lambda )
+
+    RETURN
+    END
+
+    INTEGER FUNCTION find_triangle_compatibility( i1, i2, i3 )
+    ! ------------
+    ! FUNCTION TO: Calculate the compatibility that three momentum can form a triangle, 1 is yes, 0 means no.
+    ! -------------
+        IMPLICIT NONE
+        ! _________________________
+        ! TRANSFER  VARIABLES
+        ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        INTEGER(KIND=4),INTENT(IN)::i1, i2, i3
+        
+        find_triangle_compatibility =  0
+
+        IF ( mom(i1) + mom(i2) .GT. mom(i3) ) THEN
+        IF ( mom(i3) + mom(i2) .GT. mom(i1) ) THEN
+        IF ( mom(i1) + mom(i3) .GT. mom(i2) ) THEN
+
+            find_triangle_compatibility =  1
+
+        END IF
+        END IF
+        END IF
 
     RETURN
     END

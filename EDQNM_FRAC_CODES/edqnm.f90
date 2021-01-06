@@ -13,7 +13,7 @@
 ! -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ! #########################
 ! PROGRAM : EDQNM
-! LAST MODIFIED: 16 November 2020
+! LAST MODIFIED: 05 January 2021
 ! _____________________________________
 ! LIST OF MODULES USED :
 !       1. main_run
@@ -56,18 +56,18 @@ PROGRAM EDQNM
 
     CALL start_timer
     
-    viscosity_array=(/ 22.0D0, 20.0D0, 18.0D0, 16.0D0, 14.0D0, 12.0D0 /)
+    !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !  I  N  I  T  I  A  L  I  Z  A  T  I  O  N
+    !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    CALL read_input
+  
+    viscosity_array=(/ 50.0D0, 30.0D0, 20.0D0, 15.0D0, 10.0D0 /)
     ! ARRAY OF VISCOSITIES
 
     no_of_visc  =   SIZE(viscosity_array)
     
     DO visc_ind =   1,  no_of_visc
 
-    !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !  I  N  I  T  I  A  L  I  Z  A  T  I  O  N
-    !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    CALL read_input
     CALL init_global_variables
     CALL init_global_arrays
     ! System is getting ready.
