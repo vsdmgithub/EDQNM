@@ -183,6 +183,9 @@ MODULE global_variables
         
         IMPLICIT  NONE
 
+        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        !  A  R  R  A  Y     A  L  L  O  C  A  T  I  O  N  
+        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         ALLOCATE ( mom( N ) , mom_band ( N ) )
         ALLOCATE ( t_axis(0 : t_step_total) )
         ALLOCATE ( laplacian_k( N ) ) 
@@ -231,6 +234,61 @@ MODULE global_variables
 		INTEGER (KIND=4),INTENT(OUT)::step
 		DOUBLE PRECISION,INTENT(IN)::time
         step    =   CEILING( time / dt)
+
+    END
+
+    SUBROUTINE fix_time_step( t_ref, t_fix )
+    ! CALL this to fix a timestep from a reference time, with nice decimal places,
+    ! e.g 0.00452 ->  0.002, 0.00123 -> 0.001 , 0.008922 -> 0.005
+
+    IMPLICIT NONE
+    
+    INTEGER(KIND=4)::st,dec
+    DOUBLE PRECISION,INTENT(IN)::t_ref
+    DOUBLE PRECISION,INTENT(OUT)::t_fix
+
+    st  = 0
+    dec = 0
+    ! Decimal place, starting with zero
+
+    IF ( t_ref .LT. 10.0D0 ) THEN
+
+        DO WHILE( st .NE. 1)
+        ! Loop runs till the decimal place is found
+            
+            IF ( t_ref > 10.0D0 ** ( - dec ) ) THEN
+            
+                t_fix = DBLE( FLOOR( t_ref * ( 10.0D0 ** (dec) ) ) )
+                ! First non-zero digit in the 'dec' decimal place
+                
+                st    = 1
+                ! Found.
+                
+            ELSE
+            
+                dec   = dec + 1
+                ! Exploring the next decimal place
+                
+            END IF
+            
+        END DO
+        
+    END IF
+
+    ! To have cutoff of type 'a * 10(-d)' with a=1,2,5.
+    IF ( t_fix .GT. 5 ) THEN
+
+        t_fix = 5.0D0 * ( 10.0D0 ** ( - dec ) )
+        
+    ELSE IF ( t_fix .GT. 2 ) THEN
+
+        t_fix = 2.0D0 * ( 10.0D0 ** ( - dec ) )
+        
+    ELSE
+
+        t_fix = 1.0D0 * ( 10.0D0 ** ( - dec ) )
+        
+    END IF
 
     END
 

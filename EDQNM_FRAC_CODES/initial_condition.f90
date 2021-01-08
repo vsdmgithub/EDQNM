@@ -198,6 +198,4 @@ MODULE initial_condition
 
 	END
 
-
-
 END MODULE initial_condition

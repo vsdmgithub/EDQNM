@@ -44,27 +44,69 @@ PROGRAM EDQNM
     USE timer_mod
     
 	IMPLICIT NONE
+    ! _________________________
+    !  VARIABLES
+    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    INTEGER(KIND=4)::visc_ind,no_of_visc
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::viscosity_array,dt_array
+
+    ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+    ! SEQUENCE OF SIMULATIONS WITH DIFFERENT VISCOSITY
+    ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
 
     CALL start_timer
- 
+    
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !  I  N  I  T  I  A  L  I  Z  A  T  I  O  N
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     CALL read_input
+
+    no_of_visc  =   5 
+    ALLOCATE( viscosity_array( no_of_visc ), dt_array( no_of_visc ) )
+    
+    viscosity_array=(/ 10.0D0, 5.0D0, 1.0D0, 0.5D0, 0.1D0 /)
+    ! ARRAY OF VISCOSITIES
+
+    dt_array=(/ 2.0D0, 5.0D0, 10.0D0, 10.0D0, 10.0D0 /)
+    ! ARRAY OF TIMESTEPS FOR EACH VISCOSITY RESPECTIVELY
+    
+    DO visc_ind =   1,  no_of_visc
+    
+    viscosity   =   viscosity_array( visc_ind ) * ( 10.0D0 ** ( - 4.0D0 ) )
+    ! Correcting the order of viscosity
+
+    dt          =   dt_array( visc_ind ) * ( 10.0D0 ** ( - 5.0D0 ) )
+    ! Correcting the order of time step
+    
+    PRINT*,'========================================'
+    WRITE(*,'(I2,A15,ES10.3)'),visc_ind,'VISCOSITY = ',viscosity
+    PRINT*,'========================================'
+
     CALL init_global_variables
-    CALL init_global_arrays
+    CALL init_global_arrays   
+    ! System is getting ready.
+
     CALL init_system_parameters
     CALL init_system_arrays
     ! We get all the variables, and arrays ready to be allocated
 
+    CALL pre_analysis
+    ! Does time_step check, initial condition and writing details of simulation
+    ! Allocating the evolution arrays, if everything is set, 'all_set' will be 1.
+
     c='y'
     ! Easy way to stop the evolution with only initiation
+    
+    IF (c .EQ. 'n') THEN
+
+        PRINT*,'========================================'
+        WRITE(*,'(A30,ES10.2)'),'RECOMMENDED TIME STEP = ',dt_ref
+        WRITE(*,'(A30,ES10.2)'),'GIVEN TIME STEP = ',dt
+        PRINT*,'========================================'
+           
+    END IF
 
     IF (c .EQ. 'y') THEN
-
-        CALL pre_analysis
-        ! Does time_step check, initial condition and writing details of simulation
-        ! Allocating the evolution arrays, if everything is set, 'all_set' will be 1.
 
         IF (all_set .EQ. 1) THEN
 
@@ -85,6 +127,11 @@ PROGRAM EDQNM
         END IF
 
     END IF
+
+    CALL array_deallocation
+    ! To deallocate all the used arrays.
+
+    END DO
     
     CALL finish_timer
     

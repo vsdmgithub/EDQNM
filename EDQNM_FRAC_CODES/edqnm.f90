@@ -48,7 +48,7 @@ PROGRAM EDQNM
     !  VARIABLES
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     INTEGER(KIND=4)::visc_ind,no_of_visc
-    DOUBLE PRECISION,DIMENSION(6)::viscosity_array
+    DOUBLE PRECISION,DIMENSION(5)::viscosity_array
 
     ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
     ! SEQUENCE OF SIMULATIONS WITH DIFFERENT VISCOSITY
@@ -64,7 +64,7 @@ PROGRAM EDQNM
     viscosity_array=(/ 50.0D0, 30.0D0, 20.0D0, 15.0D0, 10.0D0 /)
     ! ARRAY OF VISCOSITIES
 
-    no_of_visc  =   SIZE(viscosity_array)
+    no_of_visc  =   5
     
     DO visc_ind =   1,  no_of_visc
 
@@ -83,14 +83,23 @@ PROGRAM EDQNM
     CALL init_system_arrays
     ! We get all the variables, and arrays ready to be allocated
 
-    c='y'
+    CALL pre_analysis
+    ! Does time_step check, initial condition and writing details of simulation
+    ! Allocating the evolution arrays, if everything is set, 'all_set' will be 1.
+
+    c='n'
     ! Easy way to stop the evolution with only initiation
+    
+    IF (c .EQ. 'n') THEN
+
+        PRINT*,'========================================'
+        WRITE(*,'(A30,ES10.2)'),'RECOMMENDED TIME STEP = ',dt_ref
+        WRITE(*,'(A30,ES10.2)'),'GIVEN TIME STEP = ',dt
+        PRINT*,'========================================'
+           
+    END IF
 
     IF (c .EQ. 'y') THEN
-
-        CALL pre_analysis
-        ! Does time_step check, initial condition and writing details of simulation
-        ! Allocating the evolution arrays, if everything is set, 'all_set' will be 1.
 
         IF (all_set .EQ. 1) THEN
 
@@ -111,7 +120,10 @@ PROGRAM EDQNM
         END IF
 
     END IF
-  
+
+    CALL array_deallocation
+    ! To deallocate all the used arrays.
+    
     END DO
 
     CALL finish_timer

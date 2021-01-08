@@ -72,21 +72,22 @@ MODULE main_run
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         !       T    I    M     E              S    T    E    P              C   H    E   C   K
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        IF ( ( dt .LT.  time_spec ) .AND. ( dt .LT. time_visc) ) THEN
+        IF ( dt  .LT. MIN( time_visc, time_spec ) ) THEN
 
             all_set =  1
             
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            !  A  R  R  A  Y        D  E  A  L  L  O  C  A  T  I  O  N
+            !  A  R  R  A  Y        A  L  L  O  C  A  T  I  O  N
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             ALLOCATE( spec( N ) )
             ALLOCATE( forcer( N ), forcer_template( N ) )
             ALLOCATE( en_time (0 : t_step_total) )
             ALLOCATE( es_time (0 : t_step_total) )
             ALLOCATE( ds_time (0 : t_step_total) )
+            ALLOCATE( sk_time (0 : t_step_total) )
             ALLOCATE( d_spec1( N ), d_spec2( N ), d_spec3( N ), d_spec4( N ))
             ALLOCATE( spec_temp( N ), transfer_spec( N ), eddy_array( N ) )
-            ALLOCATE( flux( N ) )
+            ALLOCATE( flux( N ), flux_pos( N ), flux_neg( N ) )
 
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             !  I  N  I  T  I  A  L        C  O  N  D  I  T  I  O  N
@@ -103,20 +104,23 @@ MODULE main_run
 
             CALL simulation_data_import(N,t_step_total)
             ! Copies the basic data of simulation to a subroutine in output module for easy saving
-
+        
             file_location=TRIM(ADJUSTL(path_dir))//TRIM(ADJUSTL(name_dir))&
             //TRIM(ADJUSTL(name_sys))//TRIM(ADJUSTL(name_sim))//'/'
             
         ELSE
         
             all_set =   0
-
+        
+            
+            WRITE(*,'(A50)'),'----------------------------------------------------------------------'
             WRITE(*,'(A50)'),'ERROR: TIME STEP TOO LARGE'
             WRITE(*,'(A50)'),'----------------------------------------------------------------------'
-            WRITE(*,'(A50,F10.6)'),' RESET THE TIME STEP (AT MAX) AS :',MIN(time_spec,time_visc)
-
-         END IF
-
+            WRITE(*,'(A50,ES10.2)'),' RESET THE TIME STEP (AT MAX) AS :',dt_ref
+            WRITE(*,'(A50)'),'----------------------------------------------------------------------'
+                    
+        END IF
+        
     END
     
 	SUBROUTINE write_details
@@ -152,7 +156,10 @@ MODULE main_run
         WRITE(233,"(A2,A20,A2,F8.6)")'5.',' Viscosity  ','= ',viscosity
         WRITE(233,"(A2,A20,A2,I5)")'6.',' No of saves   ','= ',save_total
         WRITE(233,"(A2,A20,A2,F6.3)")'7.',' Initial energy ','= ',initial_en
-
+        WRITE(233,"(A2,A20,A2,F12.4)")'8.',' Smallest wavenumber','= ',mom(1)
+        WRITE(233,"(A2,A20,A2,F12.4)")'9.',' Largest wavenumber ','= ',mom(N)
+        WRITE(233,"(A2,A20,A2,I8)")'10.',' Total Triad count ','= ',no_of_triads
+        
         CLOSE(233)
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           
@@ -233,16 +240,23 @@ MODULE main_run
             !  DISSIPATION FILE
 
             CALL transfer_term
+            CALL flux_decomposition
+                        
             file_address  =   TRIM(ADJUSTL(file_location))  //  'transfer_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
             CALL write_spectrum(file_address,mom,transfer_spec)
-            !  ENERGY TRANSFER FILE
-            
-            DO ind = 1, N
-                flux( ind ) = - SUM( transfer_spec( : ind) * mom_band( : ind) )
-            END DO
+            !  ENERGY TRANSFER FILE           
+       
             file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
             CALL write_spectrum(file_address,mom,flux)
             !  FLUX  FILE
+
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_pos_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_pos)
+            !  POSITIVE FLUX  FILE
+
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_neg_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_neg)
+            !  NEGATIVE FLUX  FILE
        
         END IF
 
@@ -255,7 +269,11 @@ MODULE main_run
         dissipation_rate =   two * viscosity * enstrophy
         ds_time(t_step)  =   dissipation_rate
 
-        !  ENERGY , ENSTROPHY, DISSIPATION VS TIME 
+        skewness         =   SUM( transfer_spec * laplacian_k * mom_band )
+        skewness         =   skewness * ( enstrophy ** ( -1.5D0 )) * DSQRT(135.0D0/98.0D0)
+        sk_time(t_step)  =   skewness
+        
+        !  ENERGY,ENSTROPHY, DISSIPAtioN AND SKEWNESS VS TIME 
 
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         !  F  O  R  C  I  N  G      I  N  I  T  I  A  T  I  N  G
@@ -317,23 +335,42 @@ MODULE main_run
         CALL write_temporal(file_address,t_axis,ds_time)
         ! DISSIPATION VS TIME FILE
 
-        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        !  A  R  R  A  Y        D  E  A  L  L  O  C  A  T  I  O  N
-        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        DEALLOCATE(spec)
-        DEALLOCATE(forcer,forcer_template)
-        DEALLOCATE(en_time,es_time)
-        DEALLOCATE(d_spec1, d_spec2, d_spec3, d_spec4)
-        DEALLOCATE(spec_temp, transfer_spec, eddy_array )
-        DEALLOCATE(flux )
-
-        DEALLOCATE(p_ind_max,p_ind_min)
-        DEALLOCATE(kqp_triangle_status,geom_fac)
-        
-        DEALLOCATE(mom,mom_band)
-        DEALLOCATE(t_axis)
-        DEALLOCATE(laplacian_k)
+        file_address  =  TRIM(ADJUSTL(file_location))   //     'skewness_vs_time.dat'
+        CALL write_temporal(file_address,t_axis,sk_time)
+        ! SKEWNESS VS TIME FILE
        
      END
 
+    SUBROUTINE array_deallocation
+    ! INFO - START  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    ! ------------
+    ! This does all the post analysis, making calls to write output after the evolution, debug and statistics part.
+    ! -------------
+    ! INFO - END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        IMPLICIT NONE
+       
+        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        !  A  R  R  A  Y        D  E  A  L  L  O  C  A  T  I  O  N
+        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        ! From 'global_variables'
+        DEALLOCATE(mom,mom_band)
+        DEALLOCATE(t_axis)
+        DEALLOCATE(laplacian_k)
+
+        ! From 'system_parameters'
+        DEALLOCATE(p_ind_max,p_ind_min)
+        DEALLOCATE(kqp_status)
+        DEALLOCATE(geom_fac)
+
+        ! From 'main_run'
+        DEALLOCATE(spec)
+        DEALLOCATE(forcer,forcer_template)
+        DEALLOCATE(en_time,es_time,ds_time,sk_time)
+        DEALLOCATE(d_spec1, d_spec2, d_spec3, d_spec4)
+        DEALLOCATE(spec_temp, transfer_spec, eddy_array )
+        DEALLOCATE(flux ,flux_pos, flux_neg)
+
+     END
+     
 END MODULE main_run

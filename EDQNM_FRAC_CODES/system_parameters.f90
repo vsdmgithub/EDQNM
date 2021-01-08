@@ -96,8 +96,6 @@ MODULE system_parameters
         frac_index  =   one 
         ! Fractional laplacian index, 1 means original laplacian.
 
-!       viscosity0  =    12.0D0 * ( 10.0D0 ** ( - 4.0D0 ) )
-
 !       mom_kol     =   mom( N ) / 5.0D0
         ! Kolmogorov dissipation scale 
 
@@ -144,12 +142,15 @@ MODULE system_parameters
         ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         DOUBLE PRECISION:: mom_p_min,mom_p_max
         DOUBLE PRECISION:: z_f, x_f, y_f
-        
+
+        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        !  A  R  R  A  Y     A  L  L  O  C  A  T  I  O  N  
+        !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++        
         ALLOCATE( p_ind_min( N, N ), p_ind_max( N, N ) ) 
         ALLOCATE( kqp_status( N, N, N ), geom_fac( N, N, N ) )
         ALLOCATE( frac_laplacian_k( N ) )
         
-        kqp_status =  0
+        kqp_status          =  0
         geom_fac            =  zero
         ! Reseting to zero for safety
         
@@ -165,6 +166,8 @@ MODULE system_parameters
 
             IF ( mom_p_min .LT. mom( 1 ) ) THEN
                 p_ind_min( k_ind, q_ind )   =   1
+            ELSE IF (find_index_floor( mom_p_min ) .LE. 1) THEN
+                p_ind_min( k_ind, q_ind )   =    1
             ELSE
                 p_ind_min( k_ind, q_ind )   =   find_index_floor( mom_p_min )
             END IF
@@ -173,7 +176,7 @@ MODULE system_parameters
             IF ( mom_p_max .GT. mom( N-1 ) ) THEN
                 p_ind_max( k_ind, q_ind )   =   N
                 
-            ELSE IF (find_index_ceiling( mom_p_max ) .GT. N ) THEN
+            ELSE IF (find_index_ceiling( mom_p_max ) .GE. N ) THEN
                 p_ind_max( k_ind, q_ind )   =   N
                 
             ELSE
@@ -210,10 +213,38 @@ MODULE system_parameters
 
                     no_of_triads = no_of_triads + 1
                     ! Counting the triad
+
                 END IF      
 
             END DO
 
+        END DO
+        END DO
+
+        !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        !   T  R  I  A  D      D  E  B  U  G
+        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        DO k_ind = 1, N
+        DO q_ind = 1, N
+        DO p_ind = 1, N
+
+            IF (p_ind_max(k_ind,q_ind) .GT. N) THEN
+                PRINT*,'ERROR IN UPPER BOUNDARY',p_ind_max(k_ind,q_ind)
+            END IF
+
+            IF (p_ind_min(k_ind,q_ind) .LT. 1) THEN
+                PRINT*,'ERROR IN LOWER BOUNDARY',p_ind_min(k_ind,q_ind),k_ind,q_ind
+            END IF
+
+            IF ( kqp_status( k_ind, q_ind, p_ind ) .NE. kqp_status( k_ind, p_ind, q_ind) ) THEN
+                PRINT*,'ERROR IN TRIAD at k=',k_ind,' q=',q_ind,' p=',p_ind
+            END IF
+            
+            IF ( kqp_status( k_ind, q_ind, p_ind ) .NE. kqp_status( q_ind, k_ind, p_ind) ) THEN
+                PRINT*,'ERROR IN TRIAD at k=',k_ind,' q=',q_ind,' p=',p_ind
+            END IF
+        
+        END DO
         END DO
         END DO
         
@@ -294,6 +325,7 @@ MODULE system_parameters
         END IF
 
     RETURN
+    
     END
 
 END MODULE system_parameters

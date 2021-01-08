@@ -335,26 +335,40 @@ MODULE main_run
         file_address  =  TRIM(ADJUSTL(file_location))   //     'skewness_vs_time.dat'
         CALL write_temporal(file_address,t_axis,sk_time)
         ! SKEWNESS VS TIME FILE
-        
+       
+     END
+
+    SUBROUTINE array_deallocation
+    ! INFO - START  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    ! ------------
+    ! This does all the post analysis, making calls to write output after the evolution, debug and statistics part.
+    ! -------------
+    ! INFO - END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        IMPLICIT NONE
+       
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         !  A  R  R  A  Y        D  E  A  L  L  O  C  A  T  I  O  N
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        DEALLOCATE(spec)
+
+        ! From 'global_variables'
+        DEALLOCATE(mom,mom_band)
+        DEALLOCATE(t_axis)
+        DEALLOCATE(laplacian_k)
+
+        ! From 'system_parameters'
+        DEALLOCATE(p_ind_max,p_ind_min)
+        DEALLOCATE(kqp_status)
         DEALLOCATE(frac_laplacian_k)
         DEALLOCATE(geom_fac)
+
+        ! From 'main_run'
+        DEALLOCATE(spec)
         DEALLOCATE(forcer,forcer_template)
         DEALLOCATE(en_time,es_time,ds_time,sk_time)
         DEALLOCATE(d_spec1, d_spec2, d_spec3, d_spec4)
         DEALLOCATE(spec_temp, transfer_spec, eddy_array )
         DEALLOCATE(flux ,flux_pos, flux_neg)
 
-        DEALLOCATE(p_ind_max,p_ind_min)
-        DEALLOCATE(kqp_status)
-        
-        DEALLOCATE(mom,mom_band)
-        DEALLOCATE(t_axis)
-        DEALLOCATE(laplacian_k)
-       
      END
 
 END MODULE main_run
