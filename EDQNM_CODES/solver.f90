@@ -42,6 +42,7 @@ MODULE solver
     DOUBLE PRECISION::eddy_k,eddy_q,eddy_p
     DOUBLE PRECISION::integrand
     DOUBLE PRECISION::damping
+    DOUBLE PRECISION::min_max_ratio
    ! _________________________
     ! SOLVER ARRAYS
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -49,6 +50,8 @@ MODULE solver
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::spec_temp,eddy_array
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::transfer_spec,flux
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::flux_pos,flux_neg
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::flux_pos_local,flux_neg_local
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::flux_pos_nonlocal,flux_neg_nonlocal
     ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
 
     CONTAINS
@@ -232,6 +235,10 @@ MODULE solver
         flux_pos   =   zero
         flux_neg   =   zero
         flux       =   zero
+        flux_pos_nonlocal    =   zero
+        flux_neg_nonlocal    =   zero
+        flux_pos_local       =   zero
+        flux_neg_local       =   zero
         ! Reseting the transfer term
 
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -278,8 +285,23 @@ MODULE solver
 
                     CALL transfer_term_integrand
                     ! Getting the integrand term
+
+                    triad_sides =   (/ mom( k_ind ), mom( q_ind ), mom( p_ind ) /)
+                    ! Array consisting the 3 sides of the triangle
+
+                    min_max_ratio   =   MINVAL( triad_sides ) / MAXVAL( triad_sides )
+                    ! Finding the ratio of minimum to maximum sides of triangle
+
+                    IF ( min_max_ratio .LE. localness_cutoff_ratio ) THEN
+
+                        flux_pos_nonlocal( k2_ind ) = flux_pos_nonlocal( k2_ind ) &
+                        + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
+                        ! Summation terms over all possible k,q,p for a given k' in the region of nonlocal interactions.
+                        
+                    END IF
                     
-                    flux_pos( k2_ind ) = flux_pos( k2_ind ) + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
+                    flux_pos( k2_ind ) = flux_pos( k2_ind ) &
+                    + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
                     ! Summation terms over all possible k,q,p for a given k'.
                     
                 END IF
@@ -289,34 +311,55 @@ MODULE solver
         END DO
         END DO
 
+        flux_pos_local = flux_pos - flux_pos_nonlocal
+        ! Getting the local flux by subracting
+
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         !  N  E  G  A  T  I  V  E     F  L  U  X
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         
-!        DO k2_ind = 1 , N
-!        DO k_ind  = 1 , k2_ind
-!        DO q_ind  = k2_ind+1 , N
-!        DO p_ind  = k2_ind+1 , N
+        DO k2_ind = 1 , N
+        DO k_ind  = 1 , k2_ind
+        DO q_ind  = k2_ind+1 , N
+        DO p_ind  = k2_ind+1 , N
 
-!                IF ( kqp_status( k_ind, q_ind, p_ind )  .EQ. 1 ) THEN
-!                ! If three momentum can form a triangle
+                IF ( kqp_status( k_ind, q_ind, p_ind )  .EQ. 1 ) THEN
+                ! If three momentum can form a triangle
 
-!                    CALL transfer_term_integrand
-!                    ! Getting the integrand term
+                    CALL transfer_term_integrand
+                    ! Getting the integrand term
                     
-!                    flux_neg( k2_ind ) = flux_neg( k2_ind ) + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
-!                    ! Summation terms over all possible k,q,p for a given k'.
+                    triad_sides =   (/ mom( k_ind ), mom( q_ind ), mom( p_ind ) /)
+                    ! Array consisting the 3 sides of the triangle
+
+                    min_max_ratio   =   MINVAL( triad_sides ) / MAXVAL( triad_sides )
+                    ! Finding the ratio of minimum to maximum sides of triangle
+
+                    IF ( min_max_ratio .LE. localness_cutoff_ratio ) THEN
+
+                        flux_neg_nonlocal( k2_ind ) = flux_neg_nonlocal( k2_ind ) &
+                        + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
+                        ! Summation terms over all possible k,q,p for a given k' in the region of nonlocal interactions.
+
+                    END IF
                     
-!                END IF
+                    flux_neg( k2_ind ) = flux_neg( k2_ind ) &
+                    + integrand * mom_band( k_ind ) * mom_band( q_ind ) * mom_band( p_ind )
+                    ! Summation terms over all possible k,q,p for a given k'.
+                    
+                END IF
                 
-!        END DO
-!        END DO
-!        END DO
-!        END DO
-        
-        flux_neg    =   flux_pos    -   flux
-        ! Easy to get, rather than doing the above calculation.
-        
+        END DO
+        END DO
+        END DO
+        END DO
+
+!        flux_neg    =   flux_pos    -   flux
+        ! Easy to get, rather than doing the above calculation, if nonlocal local decomposition is not needed.
+
+        flux_neg_local = flux_neg - flux_neg_nonlocal
+        ! Getting the local flux by subracting
+                
     END
      
 END MODULE solver

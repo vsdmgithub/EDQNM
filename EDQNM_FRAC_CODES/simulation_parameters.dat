@@ -3,7 +3,7 @@ N - Shells
 dt Time step of the simulation
 0.00001
 T - Total time of the simulation
-20.0
+0.1
 S - No of saves to be made
-20
+10
 

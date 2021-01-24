@@ -48,7 +48,7 @@ PROGRAM EDQNM
     !  VARIABLES
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     INTEGER(KIND=4)::visc_ind,no_of_visc
-    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::viscosity_array,dt_array
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::viscosity_array,dt_array,k_kol_array
 
     ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
     ! SEQUENCE OF SIMULATIONS WITH DIFFERENT VISCOSITY
@@ -61,21 +61,27 @@ PROGRAM EDQNM
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     CALL read_input
 
-    no_of_visc  =   5 
-    ALLOCATE( viscosity_array( no_of_visc ), dt_array( no_of_visc ) )
+    no_of_visc  =   6
+    ALLOCATE( viscosity_array( no_of_visc ), dt_array( no_of_visc ), k_kol_array( no_of_visc) )
     
-    viscosity_array=(/ 10.0D0, 5.0D0, 1.0D0, 0.5D0, 0.1D0 /)
+    viscosity_array = (/ 5.0D0, 8.0D0, 10.0D0, 12.0D0, 16.0D0, 20.0D0 /)
+!    viscosity_array=(/ 10.0D0 /)
     ! ARRAY OF VISCOSITIES
 
-    dt_array=(/ 2.0D0, 5.0D0, 10.0D0, 10.0D0, 10.0D0 /)
+    dt_array        = (/ 10.0D0, 10.0D0, 10.0D0, 10.0D0, 10.0D0, 10.0D0 /)
+!    dt_array=(/ 2.0D0 /)
     ! ARRAY OF TIMESTEPS FOR EACH VISCOSITY RESPECTIVELY
+
+    k_kol_array     = (/ 511.0D0, 359.0D0, 304.0D0, 265.0D0, 213.0D0, 181.0D0 /)
+    ! ARRAY OF K-KOLMO SCALES
     
     DO visc_ind =   1,  no_of_visc
     
-    viscosity   =   viscosity_array( visc_ind ) * ( 10.0D0 ** ( - 4.0D0 ) )
+    viscosity   =   viscosity_array( visc_ind ) * ( 10.0D0 ** ( - 5.0D0 ) )
     ! Correcting the order of viscosity
 
     dt          =   dt_array( visc_ind ) * ( 10.0D0 ** ( - 5.0D0 ) )
+!    dt          =   dt_array( visc_ind ) * ( 10.0D0 ** ( - 3.0D0 ) )
     ! Correcting the order of time step
     
     PRINT*,'========================================'

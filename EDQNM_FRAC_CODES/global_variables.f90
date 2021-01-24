@@ -167,7 +167,7 @@ MODULE global_variables
         path_dir    =   '../EDQNM_data/'
         ! path of the main directory relative to this file.
 
-        name_dir    =   'N'//TRIM(ADJUSTL(N_char))//'_v2/'
+        name_dir    =   'N'//TRIM(ADJUSTL(N_char))//'/'
         ! name of the main directory
         
 	END

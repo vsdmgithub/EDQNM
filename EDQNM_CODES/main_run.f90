@@ -88,6 +88,8 @@ MODULE main_run
             ALLOCATE( d_spec1( N ), d_spec2( N ), d_spec3( N ), d_spec4( N ))
             ALLOCATE( spec_temp( N ), transfer_spec( N ), eddy_array( N ) )
             ALLOCATE( flux( N ), flux_pos( N ), flux_neg( N ) )
+            ALLOCATE( flux_pos_local( N ), flux_neg_local( N ) )
+            ALLOCATE( flux_pos_nonlocal( N ), flux_neg_nonlocal( N ) )
 
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             !  I  N  I  T  I  A  L        C  O  N  D  I  T  I  O  N
@@ -110,8 +112,7 @@ MODULE main_run
             
         ELSE
         
-            all_set =   0
-        
+            all_set =   
             
             WRITE(*,'(A50)'),'----------------------------------------------------------------------'
             WRITE(*,'(A50)'),'ERROR: TIME STEP TOO LARGE'
@@ -159,6 +160,7 @@ MODULE main_run
         WRITE(233,"(A2,A20,A2,F12.4)")'8.',' Smallest wavenumber','= ',mom(1)
         WRITE(233,"(A2,A20,A2,F12.4)")'9.',' Largest wavenumber ','= ',mom(N)
         WRITE(233,"(A2,A20,A2,I8)")'10.',' Total Triad count ','= ',no_of_triads
+        WRITE(233,"(A2,A20,A2,F5.2)")'11.',' Localness of triad, cutoff ','= ',localness_cutoff_ratio
         
         CLOSE(233)
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -257,7 +259,23 @@ MODULE main_run
             file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_neg_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
             CALL write_spectrum(file_address,mom,flux_neg)
             !  NEGATIVE FLUX  FILE
-       
+
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_pos_nonlocal_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_pos_nonlocal)
+            !  POSITIVE NONLOCAL FLUX  FILE
+            
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_neg_nonlocal_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_neg_nonlocal)
+            !  NEGATIVE NONLOCAL FLUX  FILE
+
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_pos_local_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_pos_local)
+            !  POSITIVE LOCAL FLUX  FILE
+                        
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_neg_local_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_neg_local)
+            !  NEGATIVE LOCAL FLUX  FILE
+                   
         END IF
 
         energy           =   SUM( spec * mom_band )
@@ -269,7 +287,7 @@ MODULE main_run
         dissipation_rate =   two * viscosity * enstrophy
         ds_time(t_step)  =   dissipation_rate
 
-        skewness         =   SUM( transfer_spec * laplacian_k * mom_band )
+        skewness         =   SUM( ( transfer_spec + forcer ) * laplacian_k * mom_band )
         skewness         =   skewness * ( enstrophy ** ( -1.5D0 )) * DSQRT(135.0D0/98.0D0)
         sk_time(t_step)  =   skewness
         
@@ -370,6 +388,8 @@ MODULE main_run
         DEALLOCATE(d_spec1, d_spec2, d_spec3, d_spec4)
         DEALLOCATE(spec_temp, transfer_spec, eddy_array )
         DEALLOCATE(flux ,flux_pos, flux_neg)
+        DEALLOCATE(flux_pos_local, flux_neg_local)
+        DEALLOCATE(flux_pos_nonlocal, flux_neg_nonlocal)
 
      END
      

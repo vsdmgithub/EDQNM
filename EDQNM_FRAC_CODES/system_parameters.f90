@@ -51,9 +51,12 @@ MODULE system_parameters
     DOUBLE PRECISION::dissipation_rate,skewness
     DOUBLE PRECISION::eddy_constant
     DOUBLE PRECISION::time_visc,time_spec
+    DOUBLE PRECISION::dt_ref
+    DOUBLE PRECISION::localness_cutoff_ratio
     ! _________________________
     CHARACTER(LEN=30)::name_sys
     ! _________________________
+    DOUBLE PRECISION,DIMENSION(3)::triad_sides
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::spec 
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::frac_laplacian_k
     DOUBLE PRECISION,DIMENSION(:,:,:),ALLOCATABLE::geom_fac
@@ -91,17 +94,13 @@ MODULE system_parameters
         ! 5. This is a fractional viscous model, s varies from (0,1). 
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-        name_sys    =   's_1_v_'
+        name_sys    =   's_zp9_v_'
 
-        frac_index  =   one 
+        frac_index  =   0.9 
         ! Fractional laplacian index, 1 means original laplacian.
 
-!       mom_kol     =   mom( N ) / 5.0D0
-        ! Kolmogorov dissipation scale 
-
-!       viscosity   =   ( mom_kol ** ( two - two * frac_index ) )
-
-!       viscosity   =   viscosity * viscosity0
+        viscosity   =   ( mom_kol ** ( two - two * frac_index ) )
+        viscosity   =   viscosity * viscosity0
         ! Modified viscosity, such that at k_kol, the dissipative coefficient is 
         ! same as that of s=1 case.
 
@@ -123,8 +122,14 @@ MODULE system_parameters
         eddy_constant    =   0.54D0
         ! Eddy constant in its expression
 
+        localness_cutoff_ratio  =   0.4
+        ! Ratio of min to max triad sides, to say it is a nonlocal triad interactions
+        ! This is userdefined . Has to be << 1 is must.
+
         CALL time_to_step_convert(time_visc,t_step_forcing)
-        
+
+        CALL fix_time_step( 0.5D0 * MIN( time_spec, time_visc), dt_ref )
+                
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           
 	END

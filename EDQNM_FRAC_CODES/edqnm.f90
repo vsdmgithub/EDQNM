@@ -48,7 +48,7 @@ PROGRAM EDQNM
     !  VARIABLES
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     INTEGER(KIND=4)::visc_ind,no_of_visc
-    DOUBLE PRECISION,DIMENSION(5)::viscosity_array
+    DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::viscosity_array,dt_array,k_kol_array
 
     ! HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
     ! SEQUENCE OF SIMULATIONS WITH DIFFERENT VISCOSITY
@@ -60,25 +60,41 @@ PROGRAM EDQNM
     !  I  N  I  T  I  A  L  I  Z  A  T  I  O  N
     !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     CALL read_input
-  
-    viscosity_array=(/ 50.0D0, 30.0D0, 20.0D0, 15.0D0, 10.0D0 /)
+
+    no_of_visc  =   6
+    ALLOCATE( viscosity_array( no_of_visc ), dt_array( no_of_visc ), k_kol_array( no_of_visc) )
+    
+    viscosity_array = (/ 5.0D0, 8.0D0, 10.0D0, 12.0D0, 16.0D0, 20.0D0 /)
+!    viscosity_array=(/ 10.0D0 /)
     ! ARRAY OF VISCOSITIES
 
-    no_of_visc  =   5
+    dt_array        = (/ 10.0D0, 10.0D0, 10.0D0, 10.0D0, 10.0D0, 10.0D0 /)
+!    dt_array=(/ 2.0D0 /)
+    ! ARRAY OF TIMESTEPS FOR EACH VISCOSITY RESPECTIVELY
+
+    k_kol_array     = (/ 511.0D0, 359.0D0, 304.0D0, 265.0D0, 213.0D0, 181.0D0 /)
+    ! ARRAY OF K-KOLMO SCALES
     
     DO visc_ind =   1,  no_of_visc
+    
+    viscosity0  =   viscosity_array( visc_ind ) * ( 10.0D0 ** ( - 5.0D0 ) )
+    ! Correcting the order of viscosity
+
+    dt          =   dt_array( visc_ind ) * ( 10.0D0 ** ( - 5.0D0 ) )
+!    dt          =   dt_array( visc_ind ) * ( 10.0D0 ** ( - 3.0D0 ) )
+    ! Correcting the order of time step
+
+    mom_kol     =   k_kol_array( visc_ind )
+    ! Kolmogorov scale for the simulation
+    
+    PRINT*,'========================================'
+    WRITE(*,'(I2,A15,ES10.3)'),visc_ind,'VISCOSITY_0 = ',viscosity0
+    PRINT*,'========================================'
 
     CALL init_global_variables
-    CALL init_global_arrays
+    CALL init_global_arrays   
     ! System is getting ready.
-    
-    viscosity   =   viscosity_array( visc_ind ) * ( 10.0D0 ** ( - 4.0D0 ) )
-    ! Correcting the order of viscosity
-    
-    PRINT*,'++++++++++++ VISCOSITY ++++++++++++++++'
-    WRITE(*,'(I2,ES10.3)'),visc_ind,viscosity
-    PRINT*,'========================================'
-    
+
     CALL init_system_parameters
     CALL init_system_arrays
     ! We get all the variables, and arrays ready to be allocated
@@ -87,7 +103,7 @@ PROGRAM EDQNM
     ! Does time_step check, initial condition and writing details of simulation
     ! Allocating the evolution arrays, if everything is set, 'all_set' will be 1.
 
-    c='n'
+    c='y'
     ! Easy way to stop the evolution with only initiation
     
     IF (c .EQ. 'n') THEN
@@ -123,9 +139,9 @@ PROGRAM EDQNM
 
     CALL array_deallocation
     ! To deallocate all the used arrays.
-    
-    END DO
 
+    END DO
+    
     CALL finish_timer
     
 END PROGRAM EDQNM

@@ -49,9 +49,11 @@ MODULE system_parameters
     DOUBLE PRECISION::eddy_constant
     DOUBLE PRECISION::time_visc,time_spec
     DOUBLE PRECISION::dt_ref
+    DOUBLE PRECISION::localness_cutoff_ratio
     ! _________________________
     CHARACTER(LEN=30)::name_sys
     ! _________________________
+    DOUBLE PRECISION,DIMENSION(3)::triad_sides
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::spec 
     DOUBLE PRECISION,DIMENSION(:,:,:),ALLOCATABLE::geom_fac
     DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::forcer,forcer_template 
@@ -103,9 +105,13 @@ MODULE system_parameters
         eddy_constant    =   0.54D0
         ! Eddy constant in its expression
 
+        localness_cutoff_ratio  =   0.4
+        ! Ratio of min to max triad sides, to say it is a nonlocal triad interactions
+        ! This is userdefined . Has to be << 1 is must.
+
         CALL time_to_step_convert(time_visc,t_step_forcing)
 
-        CALL fix_time_step( 0.8D0 * MIN( time_spec, time_visc), dt_ref )
+        CALL fix_time_step( 0.5D0 * MIN( time_spec, time_visc), dt_ref )
         
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           

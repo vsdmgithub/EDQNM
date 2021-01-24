@@ -71,7 +71,7 @@ MODULE main_run
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         !       T    I    M     E              S    T    E    P              C   H    E   C   K
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        IF ( ( dt .LT.  time_spec ) .AND. ( dt .LT. time_visc) ) THEN
+        IF ( dt  .LT. MIN( time_visc, time_spec ) ) THEN
 
             all_set =  1
             
@@ -87,6 +87,8 @@ MODULE main_run
             ALLOCATE( d_spec1( N ), d_spec2( N ), d_spec3( N ), d_spec4( N ))
             ALLOCATE( spec_temp( N ), transfer_spec( N ), eddy_array( N ) )
             ALLOCATE( flux( N ), flux_pos( N ), flux_neg( N ) )
+            ALLOCATE( flux_pos_local( N ), flux_neg_local( N ) )
+            ALLOCATE( flux_pos_nonlocal( N ), flux_neg_nonlocal( N ) )
 
             !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             !  I  N  I  T  I  A  L        C  O  N  D  I  T  I  O  N
@@ -111,9 +113,11 @@ MODULE main_run
         
             all_set =   0
 
+            WRITE(*,'(A50)'),'----------------------------------------------------------------------'
             WRITE(*,'(A50)'),'ERROR: TIME STEP TOO LARGE'
             WRITE(*,'(A50)'),'----------------------------------------------------------------------'
-            WRITE(*,'(A50,F10.6)'),' RESET THE TIME STEP (AT MAX) AS :',MIN(time_spec,time_visc)
+            WRITE(*,'(A50,ES10.2)'),' RESET THE TIME STEP (AT MAX) AS :',dt_ref
+            WRITE(*,'(A50)'),'----------------------------------------------------------------------'
 
          END IF
 
@@ -149,14 +153,16 @@ MODULE main_run
         WRITE(233,"(A2,A20,A2,ES12.5)")'2.','Time step   ','= ',dt
         WRITE(233,"(A2,A20,A2,I8)")'3.',' Total time steps   ','= ',t_step_total
         WRITE(233,"(A2,A20,A2,F5.2)")'4.','Total time ','= ',time_total
+        WRITE(233,"(A2,A20,A2,F8.6)")'5.',' Viscosity_0 ','= ',viscosity0
         WRITE(233,"(A2,A20,A2,F8.6)")'5.',' Viscosity  ','= ',viscosity
         WRITE(233,"(A2,A20,A2,F6.3)")'6.',' Fractional index  ','= ',frac_index
         WRITE(233,"(A2,A20,A2,I5)")'7.',' No of saves   ','= ',save_total
         WRITE(233,"(A2,A20,A2,F6.3)")'8.',' Initial energy ','= ',initial_en
         WRITE(233,"(A2,A20,A2,F12.4)")'9.',' Smallest wavenumber','= ',mom(1)
         WRITE(233,"(A2,A20,A2,F12.4)")'10.',' Largest wavenumber ','= ',mom(N)
-        WRITE(233,"(A2,A20,A2,I8)")'11.',' Total Triad count ','= ',no_of_triads
-
+        WRITE(233,"(A2,A20,A2,F12.4)")'11.',' Kolmogorov wavenumber ','= ',mom_kol
+        WRITE(233,"(A2,A20,A2,I8)")'12.',' Total Triad count ','= ',no_of_triads
+        WRITE(233,"(A2,A20,A2,F5.2)")'13.',' Localness of triad, cutoff ','= ',localness_cutoff_ratio
         CLOSE(233)
         ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           
@@ -255,6 +261,22 @@ MODULE main_run
             CALL write_spectrum(file_address,mom,flux_neg)
             !  NEGATIVE FLUX  FILE
 
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_pos_nonlocal_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_pos_nonlocal)
+            !  POSITIVE NONLOCAL FLUX  FILE
+            
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_neg_nonlocal_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_neg_nonlocal)
+            !  NEGATIVE NONLOCAL FLUX  FILE
+
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_pos_local_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_pos_local)
+            !  POSITIVE LOCAL FLUX  FILE
+                        
+            file_address  =   TRIM(ADJUSTL(file_location))  //  'flux_neg_local_t_'   //  TRIM(ADJUSTL(file_time))//'.dat'
+            CALL write_spectrum(file_address,mom,flux_neg_local)
+            !  NEGATIVE LOCAL FLUX  FILE
+                   
         END IF
 
         energy           =   SUM( spec * mom_band )
@@ -266,10 +288,10 @@ MODULE main_run
         dissipation_rate =   two * viscosity * SUM( frac_laplacian_k * spec * mom_band )
         ds_time(t_step)  =   dissipation_rate 
 
-        skewness         =   SUM( transfer_spec * laplacian_k * mom_band )
+       skewness         =   SUM( ( transfer_spec + forcer ) * laplacian_k * mom_band )
         skewness         =   skewness * ( enstrophy ** ( -1.5D0 )) * DSQRT(135.0D0/98.0D0)
         sk_time(t_step)  =   skewness
-        
+         
         !  ENERGY,ENSTROPHY, DISSIPAtioN AND SKEWNESS VS TIME 
 
         !  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -368,7 +390,9 @@ MODULE main_run
         DEALLOCATE(d_spec1, d_spec2, d_spec3, d_spec4)
         DEALLOCATE(spec_temp, transfer_spec, eddy_array )
         DEALLOCATE(flux ,flux_pos, flux_neg)
-
+        DEALLOCATE(flux_pos_local, flux_neg_local)
+        DEALLOCATE(flux_pos_nonlocal, flux_neg_nonlocal)
+        
      END
 
 END MODULE main_run
